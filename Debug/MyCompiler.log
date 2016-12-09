@@ -1,1 +1,11 @@
-﻿
+﻿  MyScannerTest.cpp
+  MyScanner.cpp
+c:\program_projects\编译器\mycompiler\mycompiler\myscanner.cpp(28): error C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: 参见“fopen”的声明
+  MyParserTest.cpp
+c:\program_projects\编译器\mycompiler\mycompiler\myparser.h(50): error C2535: “void MyParser::InitParser(char *)”: 已经定义或声明成员函数
+  c:\program_projects\编译器\mycompiler\mycompiler\myparser.h(45): note: 参见“MyParser::InitParser”的声明
+  MyParser.cpp
+c:\program_projects\编译器\mycompiler\mycompiler\myparser.h(50): error C2535: “void MyParser::InitParser(char *)”: 已经定义或声明成员函数
+  c:\program_projects\编译器\mycompiler\mycompiler\myparser.h(45): note: 参见“MyParser::InitParser”的声明
+  正在生成代码...

@@ -5,13 +5,15 @@
 */
 
 #include "MyScanner.h"
+#include <stdarg.h>
+
 typedef double (*func_ptr)(double);
 
-typedef struct TreeNode {  //表达式的语法树节点类型
+typedef struct TreeNodeStruct {  //表达式的语法树节点类型
 	enum Token_Type OpCode;	//记号种类
 	union  {
-		struct { TreeNode *left, *right; } CaseOp; //二元运算
-		struct { TreeNode *child;	func_ptr mathfuncptr; } CaseFunc; //函数
+		struct { TreeNodeStruct *left, *right; } CaseOp; //二元运算
+		struct { TreeNodeStruct *child;	func_ptr mathfuncptr; } CaseFunc; //函数
 		double CaseConst;	//常数
 		double *CasePara;	//参数T
 	} content;
@@ -26,7 +28,7 @@ private:
 		XPtr,	YPtr,
 		AnglePtr;	//角度
 	MyScanner Scanner;	
-	int indent;// 测试右缩进----层次
+	int indent;// 测试用于缩进
 public:
 	MyParser();
 	~MyParser();
@@ -44,8 +46,7 @@ public:
 	//根据BNCF构造的非终结符递归子程序 
 	void Program();
 	void Statement();
-		//MySemantics中实现语法指导翻译
-	void InitParser(char *FileName);//语法分析器接口
+	//MySemantics中实现语法指导翻译
 	virtual void ForStatement();
 	virtual void OriginStatement();
 	virtual void RotStatement();
@@ -54,10 +55,10 @@ public:
 	TreeNode Term();
 	TreeNode Factor();
 	TreeNode Component();
-	TreeNode atom();
+	TreeNode Atom();
 
 
-	//语法分析器跟踪调试，在MySemantics中重置为不起作用
+	//语法分析器测试用的成员函数，在MySemantics中重置为不起作用
 	virtual void Enter(char* x);
 	virtual void Back(char*x);
 	virtual void CallMatch(char*x);

@@ -1,17 +1,23 @@
 #include "MyParser.h"
 
 MyParser::MyParser() {
+	TPara = 0;
+	StartPtr = NULL;
+	EndPtr = NULL;
+	StepPtr = NULL;
+	XPtr = NULL;
+	YPtr = NULL;
+	indent = 0;
 }
 
-MyParser::~MyParser() {
-}
+MyParser::~MyParser() {}
 //通过MyScanner的GetToken()获取一个记号
 void MyParser::FetchToken() {
 	token = Scanner.GetToken();
 	if (token.type == ERRTOKEN) SyntaxError(1);//非法记号
 }
 
-// 记号匹配 重载 1. 表达式（运算符）匹配 2.保留字（关键字）匹配并测试时打印匹配结果
+// 记号匹配 重载 1. 表达式（运算符）匹配 2.保留字（关键字）匹配并测试时打印当前匹配记号
 void MyParser::MatchToken(Token_Type ttoken) {
 	if (token.type != ttoken) SyntaxError(2);//当前记号不是预期记号
 	FetchToken();	//匹配成功，获取下一个记号
@@ -39,21 +45,50 @@ void MyParser::ErrorMsg(int line, char * sourcetext, char * descrip) {
 	exit(1);//TODO 出错后不退出界面
 }
 
+//语法分析器入口
+void MyParser::InitParser(char * FileName) {
+	Enter("MyParser");	//	调试语法入口标志
+	if (!Scanner.InitScanner(FileName)) {
+		cout << "打开文件失败" << endl;
+		return;
+	}
+	FetchToken();	//获取第一个记号
+	Program();		//递归分析开始
+	Scanner.CloseScanner();
+	Back("MyParser");	//调试
+	return;
+}
+
+//生成语法树节点 四类情况
 TreeNode MyParser::MakeTreeNode(Token_Type opcode, ...) {
-	return TreeNode();
+	//初始化节点
+	TreeNode TP = NULL;
+	TP = new TreeNodeStruct;	
+	TP->OpCode = opcode;
+	va_list arg_ptr;//变参列表(指针)
+	va_start(arg_ptr, opcode);
+
+	switch (opcode) {	//四类节点
+		case CONST_ID:	//常量
+			TP->content.CaseConst = (double)va_arg(arg_ptr, double);
+			break;
+		case T:		//参数T
+			TP->content.CasePara = &TPara;	//TPara作用域MyParser
+			break;
+		case FUNC:	//函数
+			TP->content.CaseFunc.mathfuncptr = (func_ptr)va_arg(arg_ptr, func_ptr);
+			TP->content.CaseFunc.child = (TreeNode)va_arg(arg_ptr, TreeNode);
+			break;
+		default:	//二元运算
+			TP->content.CaseOp.left = (TreeNode)va_arg(arg_ptr, TreeNode);
+			TP->content.CaseOp.right = (TreeNode)va_arg(arg_ptr, TreeNode);
+			break;
+	}
+
+	va_end(arg_ptr);
+	return TP;
 }
-
-void MyParser::PrintSyntaxTree(TreeNode root, int indent) {
-}
-
-
-TreeNode MyParser::MakeTreeNode(Token_Type opcode, ...) {
-	return TreeNode();
-}
-
-void MyParser::PrintSyntaxTree(TreeNode root, int indent) {
-}
-
+//根据EBNF所得的递归子程序
 void MyParser::Program() {//Program -> {Statement ;}
 	Enter("Program");
 	while (token.type!=NONTOKEN)
@@ -135,7 +170,7 @@ void MyParser::ForStatement() {
 
 	Back("ForStatement");
 }
-
+//表达式的语法树的递归构造
 TreeNode MyParser::Expression() {
 	//Expression → Term  { ( PLUS | MINUS) Term } 
 	Enter("Expression");
@@ -171,51 +206,111 @@ TreeNode MyParser::Term() {
 	}
 	return left;
 }
-
 TreeNode MyParser::Factor() {
-	return TreeNode();
-}
-
-TreeNode MyParser::Component() {
-	return TreeNode();
-}
-
-TreeNode MyParser::atom() {
-	return TreeNode();
-}
-
-//语法分析器入口
-void MyParser::InitParser(char * FileName) {
-	Enter("MyParser");	//	调试语法入口标志
-	if (!Scanner.InitScanner(FileName)) {
-		cout << "打开文件失败" << endl;
-		return;
+	//Factor  → ( PLUS | MINUS ) Factor | Component
+	TreeNode left, right;
+	if (token.type == PLUS)	//一元加，仅有右操作数
+	{
+		MatchToken(PLUS);
+		right = Factor();
 	}
-	FetchToken();	//获取第一个记号
-	Program();		//递归分析开始
-	Scanner.CloseScanner();
-	Back("MyParser");	//调试
-	return;
+	else
+		if (token.type == MINUS)	//一元减-->二元0-factor
+		{
+			MatchToken(MINUS);
+			right = Factor();
+			left = new TreeNodeStruct;
+			left->OpCode = CONST_ID;
+			left->content.CaseConst = 0.0;
+			right = MakeTreeNode(MINUS, left, right);
+		}
+		else
+			right = Component();
+	return right;//右结合
+}
+TreeNode MyParser::Component() {
+	//Component → Atom [ POWER Component ] //[]可被绕过的路径
+	TreeNode left, right;
+	left = Atom();
+	if (token.type == POWER)//右结合
+	{
+		MatchToken(POWER);
+		right = Component();	//递归调用以实现Power的右结合性！！
+		left = MakeTreeNode(POWER, left, right);
+	}
+	return left;
+}
+TreeNode MyParser::Atom() {
+//	Atom → CONST_ID
+//      | T
+//      | FUNC L_BRACKET Expression R_BRACKET
+//      | L_BRACKET Expression R_BRACKET 
+
+	Token t = token;
+	TreeNode TP = NULL, tmp;
+	switch (token.type) {
+		case  CONST_ID:
+			MatchToken(CONST_ID); 	TP = MakeTreeNode(CONST_ID, t.value);
+			break;
+		case T:
+			MatchToken(T);			TP = MakeTreeNode(T);
+			break;
+		case FUNC:
+			MatchToken(FUNC);
+			MatchToken(L_BRACKET);
+			tmp = Expression();		TP = MakeTreeNode(FUNC, t.func_ptr, tmp);
+			MatchToken(R_BRACKET);
+			break;
+		case L_BRACKET:
+			MatchToken(L_BRACKET);
+			TP = Expression();
+			MatchToken(R_BRACKET);
+			break;
+		default:
+			SyntaxError(2);
+			break;
+	}
+	return TP;
 }
 
-//语法分析器测试跟踪 
-//进入子层
+
+//语法分析器测试
+//先序遍历打印表达式的语法树 四类情况
+void MyParser::PrintSyntaxTree(TreeNode root, int indent) {//此处indent为相对缩进
+	for (int i = 1; i <= this->indent + indent; i++) cout << ' ';//缩进
+	switch (root->OpCode) {
+		case PLUS:	cout << "+" << endl; break;
+		case MINUS: cout << "-" << endl; break;
+		case MUL:	cout << "*" << endl; break;
+		case DIV:	cout << "/" << endl; break;
+		case POWER:	cout << "**" << endl; break;
+		case T:		cout << "T" << endl; break;
+		case CONST_ID:	cout << root->content.CaseConst << endl; break;
+		case FUNC:	cout << (void*)(root->content.CaseFunc.mathfuncptr) << endl; break;
+		default:	cout << "非法的树节点！" << endl; exit(0);//TODO 报错窗口
+	}
+	if (root->OpCode == CONST_ID || root->OpCode == T) return; //叶子节点
+	if (root->OpCode == FUNC) //继续递归打印子节点
+		PrintSyntaxTree(root->content.CaseFunc.child, indent + 2);
+	else {
+		PrintSyntaxTree(root->content.CaseOp.left, indent + 2);
+		PrintSyntaxTree(root->content.CaseOp.right, indent + 2);
+	}
+}
 void MyParser::Enter(char * x) {
 	for (int i = 0; i < indent; i++)	cout << " "; 
 	cout << "EnterIn: " << x << endl;
 	indent += 2;
 }
-//退出子层	
 void MyParser::Back(char * x) {
 	indent -= 2;
 	for (int i = 0; i < indent; i++)	cout << " "; 
 	cout << "BackFrom: " << x << endl;
 }
-//匹配一记号成功
 void MyParser::CallMatch(char * x) {
 	for (int i = 0; i < indent; i++)	cout << " "; 
 	cout << "MatchToken:" << x << endl;
 }
-
-void MyParser::TreeTrace(TreeNode x) {
+void MyParser::TreeTrace(TreeNode x) { //打印表达式语法树
+	PrintSyntaxTree(x, 0);
 }

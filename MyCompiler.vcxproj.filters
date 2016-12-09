@@ -18,12 +18,21 @@
     <ClInclude Include="MyScanner.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="MyParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyScanner.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MyScannerTest.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MyParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MyParserTest.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -180,7 +180,7 @@ Token MyScanner::GetToken() {
 					}
 				case '*'://乘号或者指数
 					NextChar = GetChar();
-					if (NextChar='*')
+					if (NextChar=='*')
 					{
 						token.type = POWER;
 						AddToTokenStr(NextChar);
